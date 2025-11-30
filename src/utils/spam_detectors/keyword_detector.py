@@ -81,7 +81,7 @@ class KeywordSpamDetector(SpamDetectorBase):
             logger.error(f"Failed to compile keyword pattern: {e}")
             return None
 
-    def detect(self, message: Message) -> Tuple[bool, Optional[dict]]:
+    def detect(self, message: Message, context: Optional[dict] = None) -> Tuple[bool, Optional[dict]]:
         """
         Check if message contains any spam keyword.
         

@@ -1,5 +1,7 @@
 """Main bot class for BetterForward."""
 
+from typing import Optional
+
 import pytz
 from diskcache import Cache
 from telebot import types, TeleBot
@@ -21,7 +23,8 @@ class TGBot:
     """Main Telegram bot class."""
 
     def __init__(self, bot_token: str, group_id: str, db_path: str = "./data/storage.db",
-                 num_workers: int = 5):
+                 num_workers: int = 5, ai_api_key: Optional[str] = None,
+                 ai_api_base: Optional[str] = None, ai_model: str = "gpt-3.5-turbo"):
         """
         Initialize the bot.
         
@@ -30,12 +33,18 @@ class TGBot:
             group_id: Target group ID
             db_path: Path to SQLite database
             num_workers: Number of worker threads for message processing (default: 5)
+            ai_api_key: API key for AI spam detection (OpenAI-compatible)
+            ai_api_base: Base URL for AI spam detection (OpenAI-compatible)
+            ai_model: Model name for AI spam detection
         """
         logger.info(_("Starting BetterForward..."))
         self.group_id = int(group_id)
         self.bot = TeleBot(token=bot_token)
         self.db_path = db_path
         self.num_workers = num_workers
+        self.ai_api_key = ai_api_key
+        self.ai_api_base = ai_api_base
+        self.ai_model = ai_model
 
         # Initialize database
         self.database = Database(db_path)
@@ -58,6 +67,19 @@ class TGBot:
         self.spam_detector_manager = SpamDetectorManager()
         self.keyword_detector = KeywordSpamDetector()
         self.spam_detector_manager.register_detector(self.keyword_detector)
+        self.ai_detector = None
+        if self.ai_api_key and self.ai_api_base:
+            try:
+                from src.utils.spam_detectors import OpenAISpamDetector
+                self.ai_detector = OpenAISpamDetector(
+                    api_key=self.ai_api_key,
+                    base_url=self.ai_api_base,
+                    model=self.ai_model
+                )
+                self.spam_detector_manager.register_detector(self.ai_detector)
+                logger.info(_("AI spam detector enabled"))
+            except Exception as e:
+                logger.error(_("Failed to initialize AI spam detector: {}").format(str(e)))
 
         # Initialize handlers
         self.message_handler = MessageHandler(

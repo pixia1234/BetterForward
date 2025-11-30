@@ -105,9 +105,34 @@ class MessageHandler:
         spam_info = None
 
         if self.spam_detector_manager:
-            is_spam_detected, spam_info = self.spam_detector_manager.detect_spam(message)
+            has_group_replied = self._has_group_replied(message.from_user.id, cursor)
+            spam_context = {"enable_ai": not has_group_replied}
+            is_spam_detected, spam_info = self.spam_detector_manager.detect_spam(
+                message, context=spam_context)
+            logger.info(_("Spam detection result for user {}: spam={}, info={}").format(
+                message.from_user.id, is_spam_detected, spam_info if spam_info else {}))
 
             if is_spam_detected:
+                # Auto-ban spam sender
+                cursor.execute(
+                    "INSERT OR REPLACE INTO blocked_users (user_id, username, first_name, last_name) VALUES (?, ?, ?, ?)",
+                    (message.from_user.id, message.from_user.username,
+                     message.from_user.first_name, message.from_user.last_name)
+                )
+                cursor.execute("DELETE FROM verified_users WHERE user_id = ?", (message.from_user.id,))
+                db.commit()
+                logger.info(_("Auto-banned user {} for spam").format(message.from_user.id))
+
+                # Notify spammer
+                try:
+                    self.bot.send_message(
+                        message.chat.id,
+                        _("Detected spam, you have been banned."),
+                        reply_to_message_id=message.message_id
+                    )
+                except Exception as e:
+                    logger.error(_("Failed to notify spammer {}: {}").format(message.from_user.id, str(e)))
+
                 # Get spam topic ID from cache
                 spam_topic_id = self.cache.get("spam_topic_id")
                 if spam_topic_id is None:
@@ -262,6 +287,17 @@ class MessageHandler:
                                           _("Invalid captcha setting") + f": {self.cache.get('setting_captcha')}")
                     return False
         return True
+
+    def _has_group_replied(self, user_id: int, cursor) -> bool:
+        """Check whether the group has replied to this user's thread."""
+        thread_row = cursor.execute("SELECT thread_id FROM topics WHERE user_id = ? LIMIT 1",
+                                    (user_id,)).fetchone()
+        if thread_row is None:
+            return False
+        thread_id = thread_row[0]
+        replied_row = cursor.execute(
+            "SELECT 1 FROM messages WHERE topic_id = ? AND in_group = 1 LIMIT 1", (thread_id,)).fetchone()
+        return replied_row is not None
 
     def _handle_auto_response(self, message: Message):
         """Handle automatic responses."""

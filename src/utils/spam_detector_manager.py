@@ -43,12 +43,13 @@ class SpamDetectorManager:
             self.detectors.remove(detector)
             logger.info(_("Unregistered spam detector: {}").format(detector.get_name()))
 
-    def detect_spam(self, message: Message) -> Tuple[bool, Optional[dict]]:
+    def detect_spam(self, message: Message, context: Optional[dict] = None) -> Tuple[bool, Optional[dict]]:
         """
         Check if a message is spam using all registered detectors.
         
         Args:
             message: The message to check
+            context: Optional contextual data passed to detectors
             
         Returns:
             Tuple of (is_spam, detection_info)
@@ -58,11 +59,11 @@ class SpamDetectorManager:
         """
         for detector in self.detectors:
             # Skip disabled detectors
-            if not detector.is_enabled():
+            if not detector.is_enabled(context):
                 continue
 
             try:
-                is_spam, info = detector.detect(message)
+                is_spam, info = detector.detect(message, context)
 
                 if is_spam:
                     logger.info(_("Spam detected by {}: {}").format(

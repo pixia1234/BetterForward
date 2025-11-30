@@ -15,12 +15,13 @@ class SpamDetectorBase(ABC):
     """
 
     @abstractmethod
-    def detect(self, message: Message) -> Tuple[bool, Optional[dict]]:
+    def detect(self, message: Message, context: Optional[dict] = None) -> Tuple[bool, Optional[dict]]:
         """
         Detect if a message is spam.
         
         Args:
             message: The Telegram message to check
+            context: Optional contextual information for the detector
             
         Returns:
             Tuple containing:
@@ -45,7 +46,7 @@ class SpamDetectorBase(ABC):
         """
         pass
 
-    def is_enabled(self) -> bool:
+    def is_enabled(self, context: Optional[dict] = None) -> bool:
         """
         Check if this detector is enabled.
         
