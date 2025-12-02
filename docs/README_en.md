@@ -18,7 +18,7 @@ Forward users' messages to topics in the group. Each user corresponds to a topic
   Allows setting active time for auto-reply.
 - Captcha: Added a human verification feature to ensure that users are real people, effectively preventing the sending
   of spam messages.
-- Spam Protection: Intelligent spam filtering system with keyword-based detection. Supports extensible detector interface for integrating AI models, external APIs, and custom detection methods.
+- Spam Protection: Intelligent spam filtering system with keyword-based detection. Supports extensible detector interface for integrating AI models (now including OpenAI-compatible multimodal models such as Gemini Flash), external APIs, and custom detection methods.
 - Broadcast Message: Allows admins to send a message to all users at once.
 
 ## Usage

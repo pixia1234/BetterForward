@@ -74,7 +74,8 @@ class TGBot:
                 self.ai_detector = OpenAISpamDetector(
                     api_key=self.ai_api_key,
                     base_url=self.ai_api_base,
-                    model=self.ai_model
+                    model=self.ai_model,
+                    bot=self.bot
                 )
                 self.spam_detector_manager.register_detector(self.ai_detector)
                 logger.info(_("AI spam detector enabled"))

@@ -1,10 +1,13 @@
-"""AI-based spam detector using an OpenAI-compatible API."""
+"""AI-based spam detector using an OpenAI-compatible API with optional images."""
 
+import base64
 import json
-from typing import Optional, Tuple
+import mimetypes
+from typing import List, Optional, Tuple
 
 import httpx
-from telebot.types import Message
+from telebot import TeleBot
+from telebot.types import File, Message
 
 from src.config import logger, _
 from src.utils.spam_detector_base import SpamDetectorBase
@@ -14,7 +17,8 @@ class OpenAISpamDetector(SpamDetectorBase):
     """Spam detector that delegates classification to an OpenAI-compatible model."""
 
     def __init__(self, api_key: str, base_url: str, model: str = "gpt-3.5-turbo",
-                 threshold: float = 0.5, request_timeout: float = 15.0):
+                 threshold: float = 0.5, request_timeout: float = 15.0,
+                 bot: Optional[TeleBot] = None):
         self.api_key = api_key
         # Keep caller-supplied base as-is (OpenAI: https://api.openai.com/v1,
         # Gemini-OpenAI: https://generativelanguage.googleapis.com/v1beta/openai)
@@ -22,6 +26,8 @@ class OpenAISpamDetector(SpamDetectorBase):
         self.model = model
         self.threshold = threshold
         self.request_timeout = request_timeout
+        # TeleBot instance is needed for downloading images when doing multimodal checks
+        self.bot = bot
 
     def get_name(self) -> str:
         return "AI Detector"
@@ -41,10 +47,12 @@ class OpenAISpamDetector(SpamDetectorBase):
         if not self.is_enabled(context):
             return False, None
 
-        if not message.text:
+        if not (message.text or message.caption or self._has_images(message)):
             return False, None
 
-        messages = self._build_messages(message.text)
+        user_text = message.text or message.caption or ""
+        image_parts = self._extract_image_parts(message)
+        messages = self._build_messages(user_text, image_parts)
 
         try:
             response = httpx.post(
@@ -124,20 +132,29 @@ class OpenAISpamDetector(SpamDetectorBase):
             logger.error(_("Failed to parse AI spam detection response: {}").format(str(e)))
         return None
 
-    def _build_messages(self, user_text: str):
-        """Build chat messages compatible with OpenAI and Gemini OpenAI endpoints."""
+    def _build_messages(self, user_text: str, image_parts: List[dict]):
+        """Build chat messages compatible with OpenAI/Gemini OpenAI endpoints."""
         system_text = (
             "You are a strict spam filter for a Telegram relay bot. "
             "Return JSON with fields: spam (boolean), confidence (0-1), reason (short text). "
-            "Mark spam when the message is unsolicited ads, phishing, scams, or mass promotion. "
+            "Mark spam when the message or attached images are unsolicited ads, phishing, scams, or mass promotion. "
             "Only return the JSON object. Do not return any other text."
         )
         def _as_blocks(text: str):
             return [{"type": "text", "text": text}]
 
+        user_blocks = []
+        if user_text:
+            user_blocks.extend(_as_blocks(user_text))
+        else:
+            user_blocks.extend(_as_blocks("No user text was provided. Review only the attached images for spam."))
+
+        if image_parts:
+            user_blocks.extend(image_parts)
+
         return [
             {"role": "system", "content": _as_blocks(system_text)},
-            {"role": "user", "content": _as_blocks(user_text)},
+            {"role": "user", "content": user_blocks},
         ]
 
     @staticmethod
@@ -148,3 +165,54 @@ class OpenAISpamDetector(SpamDetectorBase):
         except (TypeError, ValueError):
             return 0.5
         return max(0.0, min(confidence, 1.0))
+
+    def _has_images(self, message: Message) -> bool:
+        """Check whether the Telegram message carries image content."""
+        if getattr(message, "photo", None):
+            return True
+        doc = getattr(message, "document", None)
+        return bool(doc and doc.mime_type and doc.mime_type.startswith("image/"))
+
+    def _extract_image_parts(self, message: Message) -> List[dict]:
+        """Download and encode images as data URLs for multimodal models."""
+        if not self.bot:
+            return []
+
+        image_parts: List[dict] = []
+
+        # Photos (use the highest resolution available)
+        if getattr(message, "photo", None):
+            photo = message.photo[-1]
+            data = self._download_file(photo.file_id)
+            if data:
+                image_parts.append(self._to_image_part(data, "image/jpeg"))
+
+        # Image documents (stickers/animations are ignored here)
+        doc = getattr(message, "document", None)
+        if doc and doc.mime_type and doc.mime_type.startswith("image/"):
+            data = self._download_file(doc.file_id)
+            if data:
+                image_parts.append(self._to_image_part(data, doc.mime_type))
+
+        return image_parts
+
+    def _download_file(self, file_id: str) -> Optional[bytes]:
+        """Download file bytes from Telegram."""
+        try:
+            file_info: File = self.bot.get_file(file_id)
+            return self.bot.download_file(file_info.file_path)
+        except Exception as e:
+            logger.error(_("Failed to download file for AI spam detection: {}").format(str(e)))
+        return None
+
+    @staticmethod
+    def _to_image_part(data: bytes, mime_type: Optional[str]) -> dict:
+        """Convert image bytes to OpenAI-compatible inline image."""
+        guessed_type = mime_type or mimetypes.guess_type("file")[0] or "image/jpeg"
+        encoded = base64.b64encode(data).decode("utf-8")
+        return {
+            "type": "image_url",
+            "image_url": {
+                "url": f"data:{guessed_type};base64,{encoded}"
+            }
+        }
