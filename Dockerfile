@@ -22,9 +22,7 @@ ENV GROUP_ID=""
 ENV LANGUAGE="en_US"
 ENV TG_API=""
 ENV WORKERS="2"
-ENV AI_API_KEY=""
-ENV AI_API_BASE=""
-ENV AI_MODEL="gpt-3.5-turbo"
+ENV SPAMGROUP_ID=""
 
 CMD python -u /app/main.py \
     -token "$TOKEN" \
@@ -32,6 +30,4 @@ CMD python -u /app/main.py \
     -language "$LANGUAGE" \
     -tg_api "$TG_API" \
     -workers "$WORKERS" \
-    -ai_api_key "$AI_API_KEY" \
-    -ai_api_base "$AI_API_BASE" \
-    -ai_model "$AI_MODEL"
+    -spamgroup_id "$SPAMGROUP_ID"

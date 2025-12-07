@@ -2,11 +2,9 @@
 
 [中文README](README.md)
 
-Designed for better message forwarding in Telegram.
-
-Use the "topic" feature to achieve a better PM bot.
-
-Forward users' messages to topics in the group. Each user corresponds to a topic.
+BetterForward is a topic/channeled Telegram PM relay bot:
+- User DMs are forwarded into group topics (one topic per user).
+- Spam can optionally be forwarded into a dedicated channel/group.
 
 ## Features
 
@@ -43,43 +41,48 @@ The following are the available language options:
 
 We welcome contributions to add more languages.
 
-### Docker (Recommended)
+### Docker (recommended, multi-arch amd64/arm64)
 
-#### Using Docker Compose (Recommended)
+#### Using Docker Compose
 
-1. Download the `docker-compose.yml` file:
-
+1) Download `docker-compose.yml`:
 ```bash
 wget https://github.com/SideCloudGroup/BetterForward/raw/refs/heads/main/docker-compose.yml
 ```
-
-2. Edit the `docker-compose.yml` file and replace the placeholder values:
-    - `your_bot_token_here` with your actual bot token
-    - `your_group_id_here` with your actual group ID
-    - `zh_CN` with your preferred language (`en_US`, `zh_CN`, or `ja_JP`)
-    - Leave `TG_API` empty or set your custom API endpoint
-    - `WORKER=2` sets the number of worker threads (default: 2)
-
-3. Run with Docker Compose:
-
+2) Edit placeholders:
+   - `your_bot_token_here`: Bot token from BotFather
+   - `your_group_id_here`: main group chat_id (work group)
+   - `zh_CN`: language (`en_US` / `zh_CN` / `ja_JP`)
+   - `SPAMGROUP_ID`: optional spam-only chat_id; if empty, spam falls back to main group topic
+   - `TG_API`: optional custom Telegram API endpoint
+   - `WORKERS`: default 2
+3) Start:
 ```bash
 docker compose up -d
 ```
 
 #### Using Docker Run
 
-Replace `/path/to/data` with your actual data directory path:
-
+Replace `/path/to/data` with your data dir:
 ```bash
 docker run -d --name betterforward \
-    -e TOKEN=<your_bot_token> \
-    -e GROUP_ID=<your_group_id> \
-    -e LANGUAGE=<language> \
-    -e WORKER=2 \
-    -v /path/to/data:/app/data \
-    --restart unless-stopped \
-    ghcr.io/sidecloudgroup/betterforward:latest
+  -e TOKEN=<your_bot_token> \
+  -e GROUP_ID=<your_group_id> \
+  -e LANGUAGE=en_US \
+  -e SPAMGROUP_ID=<spam_chat_id_optional> \
+  -e WORKERS=2 \
+  -v /path/to/data:/app/data \
+  --restart unless-stopped \
+  pixia1234/betterforward:latest
 ```
+
+Environment variables:
+- `TOKEN`: bot token (required)
+- `GROUP_ID`: main group chat_id (required)
+- `LANGUAGE`: `en_US` / `zh_CN` / `ja_JP`
+- `SPAMGROUP_ID`: optional spam-only chat_id (fallback to main group topic if unset)
+- `TG_API`: optional custom Telegram API endpoint
+- `WORKERS`: thread count, default 2
 
 If you need to use a custom API, you can set the environment variable `TG_API`. Leave it empty or unset to use the
 default API.

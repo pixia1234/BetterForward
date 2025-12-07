@@ -2,11 +2,9 @@
 
 [English README](README_en.md)
 
-为更好地转发 Telegram 消息而设计。
-
-使用“话题”功能实现更好的Telegram PM Bot（私聊机器人）。
-
-将用户的消息转发到群组中，每个用户对应一个主题。
+BetterForward 是一个基于话题/频道的 Telegram 私聊转发机器人：
+- 用户私聊消息被转发到群组话题（每个用户一个话题）。
+- 可选将垃圾消息直接转发到单独的频道/群（支持多架构 Docker 镜像）。
 
 ## 特点
 
@@ -26,7 +24,7 @@
 3. 获取群组 ID。这一步可以通过邀请 [@sc_ui_bot](https://t.me/sc_ui_bot) 到群组中并发送`/id`来完成。
 4. 将 BetterForward 部署到服务器。
 
-任何发送给机器人的消息都将转发到群组中的相应主题。
+任何发送给机器人的消息都会转发到群组对应的话题。
 
 更多操作和设置项可以通过在群组内向机器人发送 `/help` 命令来查看。
 
@@ -40,47 +38,50 @@
 
 我们欢迎贡献以添加更多语言。
 
-### Docker (推荐)
+### Docker (推荐，支持 amd64/arm64 多架构)
 
-#### 使用 Docker Compose (推荐)
+#### 使用 Docker Compose
 
-1. 下载 `docker-compose.yml` 文件：
-
+1) 下载 `docker-compose.yml`：
 ```bash
 wget https://github.com/SideCloudGroup/BetterForward/raw/refs/heads/main/docker-compose.yml
 ```
-
-2. 编辑 `docker-compose.yml` 文件并替换占位符值：
-    - `your_bot_token_here` 替换为您的实际机器人令牌
-    - `your_group_id_here` 替换为您的实际群组 ID
-    - `zh_CN` 替换为您偏好的语言 (`en_US`, `zh_CN`, 或 `ja_JP`)
-    - `TG_API` 留空或设置您的自定义 API 端点
-    - `WORKER=2` 设置工作线程数量（默认：2）
-
-3. 使用 Docker Compose 运行：
-
+2) 修改占位符：
+   - `your_bot_token_here` 替换为 BotFather 提供的 token
+   - `your_group_id_here` 替换为主群组 ID（工作群）
+   - `zh_CN` 语言可选：`en_US` / `zh_CN` / `ja_JP`
+   - `SPAMGROUP_ID` 可选：填一个单独频道/群的 chat_id 用于接收垃圾消息；不填则退回主群话题
+   - `TG_API` 留空或自定义 Telegram API 端点
+   - `WORKERS` 默认为 2
+3) 启动：
 ```bash
 docker compose up -d
 ```
 
 #### 使用 Docker Run
 
-将 `/path/to/data` 替换为您的实际数据目录路径：
-
+将 `/path/to/data` 替换为数据目录路径：
 ```bash
 docker run -d --name betterforward \
-    -e TOKEN=<your_bot_token> \
-    -e GROUP_ID=<your_group_id> \
-    -e LANGUAGE=zh_CN \
-    -e WORKER=2 \
-    -v /path/to/data:/app/data \
-    --restart unless-stopped \
-    ghcr.io/sidecloudgroup/betterforward:latest
+  -e TOKEN=<your_bot_token> \
+  -e GROUP_ID=<your_group_id> \
+  -e LANGUAGE=zh_CN \
+  -e SPAMGROUP_ID=<spam_chat_id_optional> \
+  -e WORKERS=2 \
+  -v /path/to/data:/app/data \
+  --restart unless-stopped \
+  pixia1234/betterforward:latest
 ```
 
 ## 自定义 API
 
-如果需要使用自定义 API，可以设置环境变量 `TG_API`。留空或不设置将使用默认 API。
+环境变量：
+- `TOKEN`：机器人 token（必填）
+- `GROUP_ID`：主群组 chat_id（必填）
+- `LANGUAGE`：`en_US` / `zh_CN` / `ja_JP`
+- `SPAMGROUP_ID`：垃圾消息专用 chat_id（可选；不填则用主群话题）
+- `TG_API`：自定义 Telegram API 端点（可选）
+- `WORKERS`：消息处理线程数，默认 2
 
 ## 多线程支持
 
