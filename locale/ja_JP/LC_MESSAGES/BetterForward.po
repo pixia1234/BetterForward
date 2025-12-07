@@ -1006,5 +1006,121 @@ msgstr ""
 msgid "All spam detectors cleared"
 msgstr ""
 
+# AI spam detection admin menu and self-test
+msgid "AI Spam Detection"
+msgstr "AIスパム検知"
+
+msgid "AI Spam Detection Settings"
+msgstr "AIスパム検知設定"
+
+msgid "Set API Key"
+msgstr "APIキーを設定"
+
+msgid "Set API Base URL"
+msgstr "APIベースURLを設定"
+
+msgid "Set AI Model"
+msgstr "AIモデルを設定"
+
+msgid "Disable AI Detector"
+msgstr "AI検知を無効化"
+
+msgid "Test AI Detection"
+msgstr "AI検知をテスト"
+
+msgid "Status: {}"
+msgstr "ステータス: {}"
+
+msgid "API Base: {}"
+msgstr "APIベース: {}"
+
+msgid "API Key: {}"
+msgstr "APIキー: {}"
+
+msgid "Model: {}"
+msgstr "モデル: {}"
+
+msgid ""
+"Please send the AI API key.\\nSend /cancel to cancel this operation."
+msgstr "AIのAPIキーを送信してください。\\n/cancel で中止します。"
+
+msgid "AI API key updated."
+msgstr "AI APIキーを更新しました。"
+
+msgid ""
+"Please send the AI API base URL (e.g., https://api.openai.com/v1).\\nSend /"
+"cancel to cancel this operation."
+msgstr "AIのAPIベースURL（例：https://api.openai.com/v1）を送信してください。\\n/cancel で中止します。"
+
+msgid ""
+"Invalid base URL. Please provide a valid URL starting with http or https:"
+msgstr "ベースURLが無効です。http または https で始まる有効なURLを入力してください："
+
+msgid "AI API base URL updated."
+msgstr "AI APIベースURLを更新しました。"
+
+msgid ""
+"Please send the AI model name (e.g., gpt-4o-mini).\\nSend /cancel to cancel "
+"this operation."
+msgstr "AIモデル名（例：gpt-4o-mini）を送信してください。\\n/cancel で中止します。"
+
+msgid "Invalid model name. Please try again:"
+msgstr "モデル名が無効です。もう一度入力してください："
+
+msgid "AI model updated."
+msgstr "AIモデルを更新しました。"
+
+msgid "AI spam detector disabled"
+msgstr "AIスパム検知を無効化しました"
+
+msgid "Enable AI Detector"
+msgstr "AI検知を有効化"
+
+msgid "AI spam detector enabled"
+msgstr "AIスパム検知を有効化しました"
+
+msgid "AI detector cannot be enabled. Please set API Key and Base URL first."
+msgstr "AI検知を有効化できません。先にAPIキーとベースURLを設定してください。"
+
+msgid "AI detector is not enabled. Please configure API first."
+msgstr "AI検知が有効ではありません。先にAPIを設定してください。"
+
+msgid "AI detector is enabled but missing credentials."
+msgstr "AI検知は有効ですが、認証情報が不足しています。"
+
+msgid "AI detector is disabled or missing credentials."
+msgstr "AI検知が無効、または認証情報が不足しています。"
+
+msgid "AI test failed: {}"
+msgstr "AIテストに失敗しました: {}"
+
+msgid "AI detection failed: {}"
+msgstr "AI検知に失敗しました: {}"
+
+msgid "Result: Marked as spam ✅"
+msgstr "結果：スパムと判定 ✅"
+
+msgid "Result: Not spam ❌"
+msgstr "結果：スパムではありません ❌"
+
+msgid "Detector"
+msgstr "検知器"
+
+msgid "Method"
+msgstr "方法"
+
+msgid "Confidence"
+msgstr "確信度"
+
+msgid "Reason"
+msgstr "理由"
+
+msgid ""
+"Send a text, photo, or image document to test AI spam detection.\n"
+"Send /cancel to cancel."
+msgstr ""
+"AIスパム検知をテストするため、テキストや写真、画像ファイルを送信してください。\n"
+"/cancel で中止します。"
+
 #~ msgid "Do not forward message"
 #~ msgstr "メッセージを転送しない"

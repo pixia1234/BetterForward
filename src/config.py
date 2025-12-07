@@ -17,10 +17,7 @@ parser.add_argument("-language", type=str, default="en_US", help="Language",
 parser.add_argument("-tg_api", type=str, required=False, default="", help="Telegram API URL")
 parser.add_argument("-workers", type=int, default=5,
                     help="Number of worker threads for message processing (default: 5)")
-parser.add_argument("-ai_api_key", type=str, default="", help="AI spam detection API key")
-parser.add_argument("-ai_api_base", type=str, default="", help="AI spam detection base URL (OpenAI-compatible)")
-parser.add_argument("-ai_model", type=str, default="gpt-3.5-turbo",
-                    help="AI spam detection model name (OpenAI-compatible)")
+parser.add_argument("-spamgroup_id", type=str, default="", help="Spam forward chat ID (optional)")
 args = parser.parse_args()
 
 # Setup logging

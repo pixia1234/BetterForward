@@ -15,9 +15,7 @@ if __name__ == "__main__":
             args.token,
             args.group_id,
             num_workers=args.workers,
-            ai_api_key=args.ai_api_key or None,
-            ai_api_base=args.ai_api_base or None,
-            ai_model=args.ai_model,
+            spam_forward_chat_id=args.spamgroup_id or None,
         )
     except KeyboardInterrupt:
         logger.info(_("Exiting..."))

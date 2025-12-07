@@ -1,5 +1,6 @@
 """Main bot class for BetterForward."""
 
+import os
 from typing import Optional
 
 import pytz
@@ -23,8 +24,7 @@ class TGBot:
     """Main Telegram bot class."""
 
     def __init__(self, bot_token: str, group_id: str, db_path: str = "./data/storage.db",
-                 num_workers: int = 5, ai_api_key: Optional[str] = None,
-                 ai_api_base: Optional[str] = None, ai_model: str = "gpt-3.5-turbo"):
+                 num_workers: int = 5, spam_forward_chat_id: Optional[str] = None):
         """
         Initialize the bot.
         
@@ -33,18 +33,12 @@ class TGBot:
             group_id: Target group ID
             db_path: Path to SQLite database
             num_workers: Number of worker threads for message processing (default: 5)
-            ai_api_key: API key for AI spam detection (OpenAI-compatible)
-            ai_api_base: Base URL for AI spam detection (OpenAI-compatible)
-            ai_model: Model name for AI spam detection
         """
         logger.info(_("Starting BetterForward..."))
         self.group_id = int(group_id)
         self.bot = TeleBot(token=bot_token)
         self.db_path = db_path
         self.num_workers = num_workers
-        self.ai_api_key = ai_api_key
-        self.ai_api_base = ai_api_base
-        self.ai_model = ai_model
 
         # Initialize database
         self.database = Database(db_path)
@@ -54,6 +48,8 @@ class TGBot:
 
         # Load settings into cache
         self.load_settings()
+        # Apply runtime/env overrides (not persisted)
+        self._apply_runtime_overrides(spam_forward_chat_id)
 
         # Initialize timezone
         tz_str = self.cache.get("setting_time_zone")
@@ -68,19 +64,7 @@ class TGBot:
         self.keyword_detector = KeywordSpamDetector()
         self.spam_detector_manager.register_detector(self.keyword_detector)
         self.ai_detector = None
-        if self.ai_api_key and self.ai_api_base:
-            try:
-                from src.utils.spam_detectors import OpenAISpamDetector
-                self.ai_detector = OpenAISpamDetector(
-                    api_key=self.ai_api_key,
-                    base_url=self.ai_api_base,
-                    model=self.ai_model,
-                    bot=self.bot
-                )
-                self.spam_detector_manager.register_detector(self.ai_detector)
-                logger.info(_("AI spam detector enabled"))
-            except Exception as e:
-                logger.error(_("Failed to initialize AI spam detector: {}").format(str(e)))
+        self.refresh_ai_detector()
 
         # Initialize handlers
         self.message_handler = MessageHandler(
@@ -183,6 +167,59 @@ class TGBot:
         for key, value in settings.items():
             self.cache.set(f"setting_{key}", value)
 
+    def _get_ai_settings(self) -> tuple[Optional[str], Optional[str], str, bool]:
+        """Fetch AI spam detection settings from cache."""
+        api_key = self.cache.get("setting_ai_api_key") or None
+        api_base = self.cache.get("setting_ai_api_base") or None
+        model = self.cache.get("setting_ai_model") or "gpt-3.5-turbo"
+        enabled_flag = self.cache.get("setting_ai_enabled")
+        ai_enabled = enabled_flag != "disable"
+        return api_key, api_base, model, ai_enabled
+
+    def _get_spam_forward_chat_id(self) -> Optional[int]:
+        """Get external spam forward chat ID if configured."""
+        raw = self.cache.get("setting_spam_forward_chat_id")
+        if not raw:
+            return None
+        try:
+            return int(raw)
+        except (TypeError, ValueError):
+            logger.error(_("Invalid spam forward chat ID: {}").format(raw))
+            return None
+
+    def refresh_ai_detector(self):
+        """
+        Reload the AI spam detector based on current settings.
+        
+        This can be called at runtime when admins update credentials.
+        """
+        # Remove existing detector if present
+        if self.ai_detector:
+            self.spam_detector_manager.unregister_detector(self.ai_detector)
+            self.ai_detector = None
+
+        api_key, api_base, model, ai_enabled = self._get_ai_settings()
+        if not ai_enabled:
+            logger.info(_("AI spam detector disabled"))
+            return
+
+        if not (api_key and api_base):
+            logger.info(_("AI spam detector disabled due to missing API key or base URL"))
+            return
+
+        try:
+            from src.utils.spam_detectors import OpenAISpamDetector
+            self.ai_detector = OpenAISpamDetector(
+                api_key=api_key,
+                base_url=api_base,
+                model=model,
+                bot=self.bot
+            )
+            self.spam_detector_manager.register_detector(self.ai_detector)
+            logger.info(_("AI spam detector enabled"))
+        except Exception as e:
+            logger.error(_("Failed to initialize AI spam detector: {}").format(str(e)))
+
     def update_self_time_zone(self):
         """Update the timezone from cache and propagate to all handlers."""
         tz_str = self.cache.get("setting_time_zone")
@@ -210,10 +247,16 @@ class TGBot:
                 logger.error(_("Bot doesn't have {} permission").format(key))
                 self.bot.send_message(self.group_id, _("Bot doesn't have {} permission").format(key))
 
-        # Check and create spam topic if not exists
-        self._ensure_spam_topic()
+        # Check and create spam topic if not exists (only when no external spam chat configured)
+        if self._get_spam_forward_chat_id() is None:
+            self._ensure_spam_topic()
 
         self.bot.send_message(self.group_id, _("Bot started successfully"))
+
+    def _apply_runtime_overrides(self, spam_forward_chat_id: Optional[str]):
+        """Load runtime overrides (non-persistent)."""
+        if spam_forward_chat_id:
+            self.cache.set("setting_spam_forward_chat_id", spam_forward_chat_id)
 
     def _ensure_spam_topic(self):
         """Ensure spam topic exists, create if not."""

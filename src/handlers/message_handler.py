@@ -1,6 +1,7 @@
 """Message handling module."""
 
 import html
+import os
 import sqlite3
 import time
 
@@ -133,17 +134,14 @@ class MessageHandler:
                 except Exception as e:
                     logger.error(_("Failed to notify spammer {}: {}").format(message.from_user.id, str(e)))
 
-                # Get spam topic ID from cache
-                spam_topic_id = self.cache.get("spam_topic_id")
-                if spam_topic_id is None:
-                    # Fallback to main topic if spam topic not configured
-                    spam_topic_id = None
-                    logger.warning(_("Spam topic not configured, using main topic"))
+                # Determine spam forwarding destination (external chat preferred)
+                target_chat_id = self._resolve_spam_destination()
+                spam_thread_id = None  # no thread when sending to external chat
 
-                # Forward directly to spam topic without creating user thread
+                # Forward directly to spam destination without creating user thread
                 try:
                     fwd_msg = self._send_message_by_type(message, msg_text, msg_caption,
-                                                         self.group_id, spam_topic_id, None, silent=True)
+                                                         target_chat_id, spam_thread_id, None, silent=True)
 
                     # Build alert message based on detection info
                     alert_msg = f"🚫 {_('[Spam Detected]')}\n"
@@ -160,58 +158,18 @@ class MessageHandler:
                             alert_msg += f"{_('Confidence')}: {spam_info['confidence']:.2%}\n"
 
                     self.bot.send_message(
-                        self.group_id,
+                        target_chat_id,
                         alert_msg,
-                        message_thread_id=spam_topic_id,
+                        message_thread_id=spam_thread_id,
                         reply_to_message_id=fwd_msg.message_id,
                         disable_notification=True
                     )
                 except ApiTelegramException as e:
-                    # If spam topic not found, try to recreate it
-                    if "message thread not found" in str(e).lower() or "topic" in str(e).lower():
-                        logger.warning(_("Spam topic not found, attempting to recreate..."))
-                        if self.bot_instance:
-                            try:
-                                self.bot_instance._create_spam_topic()
-                                spam_topic_id = self.cache.get("spam_topic_id")
-                                logger.info(_("Spam topic recreated, retrying message forward..."))
-
-                                # Retry forwarding
-                                fwd_msg = self._send_message_by_type(message, msg_text, msg_caption,
-                                                                     self.group_id, spam_topic_id, None, silent=True)
-
-                                # Build and send alert message
-                                alert_msg = f"🚫 {_('[Spam Detected]')}\n"
-                                alert_msg += f"{_('User ID')}: {message.from_user.id}\n"
-                                if spam_info:
-                                    if "detector" in spam_info:
-                                        alert_msg += f"{_('Detector')}: {spam_info['detector']}\n"
-                                    if "method" in spam_info:
-                                        alert_msg += f"{_('Method')}: {spam_info['method']}\n"
-                                    if "matched" in spam_info:
-                                        alert_msg += f"{_('Matched')}: {spam_info['matched']}\n"
-
-                                self.bot.send_message(
-                                    self.group_id,
-                                    alert_msg,
-                                    message_thread_id=spam_topic_id,
-                                    reply_to_message_id=fwd_msg.message_id,
-                                    disable_notification=True
-                                )
-                            except Exception as retry_error:
-                                logger.error(
-                                    _("Failed to recreate spam topic and forward message: {}").format(str(retry_error)))
-                                # Fallback to main topic
-                                self.bot.send_message(
-                                    self.group_id,
-                                    f"⚠️ {_('[Spam - Topic Error]')}\n{_('User ID')}: {message.from_user.id}",
-                                    message_thread_id=None,
-                                    disable_notification=True
-                                )
-                        else:
-                            logger.error(_("Cannot recreate spam topic: bot instance not available"))
-                    else:
-                        logger.error(_("Failed to forward spam message: {}").format(str(e)))
+                    logger.error(_("Failed to forward spam message: {}").format(str(e)))
+                    self.bot.send_message(self.group_id, _("Failed to forward spam message"))
+                except Exception as e:
+                    logger.error(_("Failed to forward spam message: {}").format(str(e)))
+                    self.bot.send_message(self.group_id, _("Failed to forward spam message"))
 
                 # Log processing time
                 processing_time = (time.time() - start_time) * 1000
@@ -298,6 +256,20 @@ class MessageHandler:
         replied_row = cursor.execute(
             "SELECT 1 FROM messages WHERE topic_id = ? AND in_group = 1 LIMIT 1", (thread_id,)).fetchone()
         return replied_row is not None
+
+    def _resolve_spam_destination(self) -> int:
+        """
+        Resolve the chat ID for spam forwarding.
+        Priority: cache setting > fallback to main group.
+        """
+        raw = self.cache.get("setting_spam_forward_chat_id")
+        if raw:
+            try:
+                chat_id = int(raw)
+                return chat_id
+            except (TypeError, ValueError):
+                logger.error(_("Invalid spam forward chat ID: {}").format(raw))
+        return self.group_id
 
     def _handle_auto_response(self, message: Message):
         """Handle automatic responses."""

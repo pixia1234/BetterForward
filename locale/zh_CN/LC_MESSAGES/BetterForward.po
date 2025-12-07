@@ -221,6 +221,122 @@ msgstr ""
 msgid "Operation cancelled"
 msgstr "操作已取消"
 
+# AI spam detection admin menu and self-test
+msgid "AI Spam Detection"
+msgstr "AI垃圾检测"
+
+msgid "AI Spam Detection Settings"
+msgstr "AI垃圾检测设置"
+
+msgid "Set API Key"
+msgstr "设置API密钥"
+
+msgid "Set API Base URL"
+msgstr "设置API Base地址"
+
+msgid "Set AI Model"
+msgstr "设置AI模型"
+
+msgid "Disable AI Detector"
+msgstr "禁用AI检测"
+
+msgid "Test AI Detection"
+msgstr "测试AI检测"
+
+msgid "Status: {}"
+msgstr "状态: {}"
+
+msgid "API Base: {}"
+msgstr "API Base: {}"
+
+msgid "API Key: {}"
+msgstr "API密钥: {}"
+
+msgid "Model: {}"
+msgstr "模型: {}"
+
+msgid ""
+"Please send the AI API key.\\nSend /cancel to cancel this operation."
+msgstr "请发送AI API密钥。\\n发送 /cancel 取消操作。"
+
+msgid "AI API key updated."
+msgstr "AI API密钥已更新。"
+
+msgid ""
+"Please send the AI API base URL (e.g., https://api.openai.com/v1).\\nSend /"
+"cancel to cancel this operation."
+msgstr "请发送AI API Base地址（例如：https://api.openai.com/v1）。\\n发送 /cancel 取消操作。"
+
+msgid ""
+"Invalid base URL. Please provide a valid URL starting with http or https:"
+msgstr "Base地址无效，请提供以http或https开头的有效URL："
+
+msgid "AI API base URL updated."
+msgstr "AI API Base地址已更新。"
+
+msgid ""
+"Please send the AI model name (e.g., gpt-4o-mini).\\nSend /cancel to cancel "
+"this operation."
+msgstr "请发送AI模型名称（例如：gpt-4o-mini）。\\n发送 /cancel 取消操作。"
+
+msgid "Invalid model name. Please try again:"
+msgstr "模型名称无效，请重试："
+
+msgid "AI model updated."
+msgstr "AI模型已更新。"
+
+msgid "AI spam detector disabled"
+msgstr "AI垃圾检测已禁用"
+
+msgid "Enable AI Detector"
+msgstr "启用AI检测"
+
+msgid "AI spam detector enabled"
+msgstr "AI垃圾检测已启用"
+
+msgid "AI detector cannot be enabled. Please set API Key and Base URL first."
+msgstr "无法启用AI检测，请先设置API Key和Base地址。"
+
+msgid "AI detector is not enabled. Please configure API first."
+msgstr "AI检测器未启用，请先配置API。"
+
+msgid "AI detector is enabled but missing credentials."
+msgstr "AI检测已启用，但缺少凭据。"
+
+msgid "AI detector is disabled or missing credentials."
+msgstr "AI检测器已禁用或缺少凭据。"
+
+msgid "AI test failed: {}"
+msgstr "AI测试失败：{}"
+
+msgid "AI detection failed: {}"
+msgstr "AI检测失败：{}"
+
+msgid "Result: Marked as spam ✅"
+msgstr "结果：判定为垃圾 ✅"
+
+msgid "Result: Not spam ❌"
+msgstr "结果：非垃圾 ❌"
+
+msgid "Detector"
+msgstr "检测器"
+
+msgid "Method"
+msgstr "方法"
+
+msgid "Confidence"
+msgstr "置信度"
+
+msgid "Reason"
+msgstr "原因"
+
+msgid ""
+"Send a text, photo, or image document to test AI spam detection.\n"
+"Send /cancel to cancel."
+msgstr ""
+"发送文本、照片或图片文件以测试AI垃圾检测。\n"
+"发送 /cancel 取消。"
+
 #: src/handlers/admin_handler.py:117 src/handlers/admin_handler.py:506
 #: src/handlers/admin_handler.py:791 src/handlers/admin_handler.py:1034
 msgid "Invalid input"

@@ -72,6 +72,20 @@ class CallbackHandler:
                 self.admin_handler.menu(call.message, edit=True)
             case "auto_reply":
                 self.admin_handler.auto_reply_menu(call.message)
+            case "ai_settings":
+                self.admin_handler.ai_settings_menu(call.message, edit=True)
+            case "set_ai_api_key":
+                self.admin_handler.set_ai_api_key(call.message)
+            case "set_ai_api_base":
+                self.admin_handler.set_ai_api_base(call.message)
+            case "set_ai_model":
+                self.admin_handler.set_ai_model(call.message)
+            case "disable_ai_detector":
+                self.admin_handler.disable_ai_detector(call.message)
+            case "enable_ai_detector":
+                self.admin_handler.enable_ai_detector(call.message)
+            case "test_ai_detection":
+                self.admin_handler.ai_test_prompt(call.message)
             case "set_auto_response_time":
                 self.admin_handler.handle_auto_response_time_callback(call.message, data)
             case "start_add_auto_reply":

@@ -59,6 +59,8 @@ class AdminHandler:
                                        callback_data=json.dumps({"action": "ban_user"})),
             types.InlineKeyboardButton("🚫" + _("Spam Keywords"),
                                        callback_data=json.dumps({"action": "spam_keywords"})),
+            types.InlineKeyboardButton("🤖" + _("AI Spam Detection"),
+                                       callback_data=json.dumps({"action": "ai_settings"})),
             types.InlineKeyboardButton("🚷" + _("Blocked User Reply"),
                                        callback_data=json.dumps({"action": "blocked_reply_settings"})),
             types.InlineKeyboardButton("🔒" + _("Captcha Settings"),
@@ -602,6 +604,270 @@ class AdminHandler:
                                               callback_data=json.dumps({"action": "menu"})))
         self.bot.send_message(message.chat.id, _("Time zone updated to {}").format(value),
                               reply_markup=markup)
+
+    # AI Spam Detection Settings
+    def ai_settings_menu(self, message: Message, edit: bool = False):
+        """Display AI spam detection settings menu."""
+        if not self.check_valid_chat(message):
+            return
+
+        api_key = self.database.get_setting('ai_api_key')
+        api_base = self.database.get_setting('ai_api_base')
+        model = self.database.get_setting('ai_model') or "gpt-3.5-turbo"
+        ai_enabled_flag = self.database.get_setting('ai_enabled')
+        ai_enabled = (ai_enabled_flag != "disable")
+        ai_ready = bool(api_key and api_base)
+        ai_active = ai_enabled and ai_ready
+        status = _("Enabled") if ai_enabled else _("Disabled")
+
+        markup = types.InlineKeyboardMarkup()
+        markup.row(
+            types.InlineKeyboardButton("🗝️" + _("Set API Key"),
+                                       callback_data=json.dumps({"action": "set_ai_api_key"})),
+            types.InlineKeyboardButton("🌐" + _("Set API Base URL"),
+                                       callback_data=json.dumps({"action": "set_ai_api_base"})),
+        )
+        markup.row(
+            types.InlineKeyboardButton("🧠" + _("Set AI Model"),
+                                       callback_data=json.dumps({"action": "set_ai_model"})),
+            types.InlineKeyboardButton(
+                ("🚫" + _("Disable AI Detector")) if ai_enabled else ("✅" + _("Enable AI Detector")),
+                callback_data=json.dumps({"action": "disable_ai_detector"} if ai_enabled else {"action": "enable_ai_detector"})
+            ),
+        )
+        markup.add(types.InlineKeyboardButton("🧪" + _("Test AI Detection"),
+                                              callback_data=json.dumps({"action": "test_ai_detection"})))
+        markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                              callback_data=json.dumps({"action": "menu"})))
+
+        text = _("AI Spam Detection Settings") + "\n"
+        text += _("Status: {}").format(status) + "\n"
+        text += _("API Base: {}").format(api_base or _("Not set")) + "\n"
+        text += _("API Key: {}").format(self._mask_api_key(api_key)) + "\n"
+        text += _("Model: {}").format(model) + "\n"
+        if ai_enabled and not ai_ready:
+            text += _("AI detector is enabled but missing credentials.")
+
+        if edit:
+            self.bot.edit_message_text(text, message.chat.id, message.message_id, reply_markup=markup)
+        else:
+            self.bot.send_message(text=text,
+                                  chat_id=message.chat.id,
+                                  message_thread_id=None,
+                                  reply_markup=markup)
+
+    def set_ai_api_key(self, message: Message):
+        """Prompt admin to set AI API key."""
+        if not self.check_valid_chat(message):
+            return
+        msg = self.bot.send_message(
+            text=_("Please send the AI API key.\nSend /cancel to cancel this operation."),
+            chat_id=self.group_id,
+            message_thread_id=None)
+        self.bot.register_next_step_handler(msg, self.save_ai_api_key)
+
+    def save_ai_api_key(self, message: Message):
+        """Save AI API key."""
+        if not self.check_valid_chat(message):
+            return
+        if not isinstance(message.text, str) or message.text.startswith("/cancel"):
+            self.bot.send_message(self.group_id, _("Operation cancelled"))
+            return
+
+        api_key = message.text.strip()
+        if not api_key:
+            msg = self.bot.send_message(self.group_id, _("Invalid API key. Please try again:"))
+            self.bot.register_next_step_handler(msg, self.save_ai_api_key)
+            return
+
+        self._persist_ai_setting("ai_api_key", api_key)
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                              callback_data=json.dumps({"action": "ai_settings"})))
+        self.bot.send_message(self.group_id, _("AI API key updated."), reply_markup=markup)
+
+    def set_ai_api_base(self, message: Message):
+        """Prompt admin to set AI API base URL."""
+        if not self.check_valid_chat(message):
+            return
+        msg = self.bot.send_message(
+            text=_("Please send the AI API base URL (e.g., https://api.openai.com/v1).\n"
+                   "Send /cancel to cancel this operation."),
+            chat_id=self.group_id,
+            message_thread_id=None)
+        self.bot.register_next_step_handler(msg, self.save_ai_api_base)
+
+    def save_ai_api_base(self, message: Message):
+        """Validate and save AI API base URL."""
+        if not self.check_valid_chat(message):
+            return
+        if not isinstance(message.text, str) or message.text.startswith("/cancel"):
+            self.bot.send_message(self.group_id, _("Operation cancelled"))
+            return
+
+        api_base = message.text.strip()
+        if not api_base or not api_base.lower().startswith("http"):
+            msg = self.bot.send_message(
+                self.group_id,
+                _("Invalid base URL. Please provide a valid URL starting with http or https:"))
+            self.bot.register_next_step_handler(msg, self.save_ai_api_base)
+            return
+
+        self._persist_ai_setting("ai_api_base", api_base)
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                              callback_data=json.dumps({"action": "ai_settings"})))
+        self.bot.send_message(self.group_id, _("AI API base URL updated."), reply_markup=markup)
+
+    def set_ai_model(self, message: Message):
+        """Prompt admin to set AI model name."""
+        if not self.check_valid_chat(message):
+            return
+        msg = self.bot.send_message(
+            text=_("Please send the AI model name (e.g., gpt-4o-mini).\nSend /cancel to cancel this operation."),
+            chat_id=self.group_id,
+            message_thread_id=None)
+        self.bot.register_next_step_handler(msg, self.save_ai_model)
+
+    def save_ai_model(self, message: Message):
+        """Save AI model name."""
+        if not self.check_valid_chat(message):
+            return
+        if not isinstance(message.text, str) or message.text.startswith("/cancel"):
+            self.bot.send_message(self.group_id, _("Operation cancelled"))
+            return
+
+        model = message.text.strip()
+        if not model:
+            msg = self.bot.send_message(self.group_id, _("Invalid model name. Please try again:"))
+            self.bot.register_next_step_handler(msg, self.save_ai_model)
+            return
+
+        self._persist_ai_setting("ai_model", model)
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                              callback_data=json.dumps({"action": "ai_settings"})))
+        self.bot.send_message(self.group_id, _("AI model updated."), reply_markup=markup)
+
+    def disable_ai_detector(self, message: Message):
+        """Disable AI spam detector without clearing credentials."""
+        if not self.check_valid_chat(message):
+            return
+
+        self._persist_ai_setting("ai_enabled", "disable", refresh=False)
+        if self.bot_instance:
+            self.bot_instance.refresh_ai_detector()
+
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                              callback_data=json.dumps({"action": "ai_settings"})))
+        self.bot.edit_message_text(_("AI spam detector disabled"),
+                                   message.chat.id, message.message_id,
+                                   reply_markup=markup)
+
+    def enable_ai_detector(self, message: Message):
+        """Enable AI spam detector if credentials exist."""
+        if not self.check_valid_chat(message):
+            return
+
+        api_key = self.database.get_setting('ai_api_key')
+        api_base = self.database.get_setting('ai_api_base')
+
+        if not (api_key and api_base):
+            self.bot.send_message(
+                self.group_id,
+                _("AI detector cannot be enabled. Please set API Key and Base URL first.")
+            )
+            return
+
+        self._persist_ai_setting("ai_enabled", "enable", refresh=False)
+
+        if self.bot_instance:
+            self.bot_instance.refresh_ai_detector()
+
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("⬅️" + _("Back"),
+                                              callback_data=json.dumps({"action": "ai_settings"})))
+        self.bot.edit_message_text(_("AI spam detector enabled"),
+                                   message.chat.id, message.message_id,
+                                   reply_markup=markup)
+
+    def _persist_ai_setting(self, key: str, value, refresh: bool = True):
+        """Persist AI-related setting and refresh detector if needed."""
+        self.database.set_setting(key, value)
+        self.cache.set(f"setting_{key}", value)
+        if refresh and self.bot_instance:
+            self.bot_instance.refresh_ai_detector()
+
+    def _mask_api_key(self, api_key):
+        """Mask API key for safe display."""
+        if not api_key:
+            return _("Not set")
+        if len(api_key) <= 6:
+            return "*" * len(api_key)
+        return f"{api_key[:3]}***{api_key[-3:]}"
+
+    # AI Detection Self-Test
+    def ai_test_prompt(self, message: Message):
+        """Start AI detection self-test conversation."""
+        if not self.check_valid_chat(message):
+            return
+        prompt = _(
+            "Send a text, photo, or image document to test AI spam detection.\n"
+            "Send /cancel to cancel."
+        )
+        msg = self.bot.send_message(self.group_id, prompt, message_thread_id=None)
+        self.bot.register_next_step_handler(msg, self.ai_test_handle)
+
+    def ai_test_handle(self, message: Message):
+        """Handle test content and run AI detector."""
+        if not self.check_valid_chat(message):
+            return
+        if isinstance(message.text, str) and message.text.startswith("/cancel"):
+            self.bot.send_message(self.group_id, _("Operation cancelled"))
+            return
+
+        if not self.bot_instance or not getattr(self.bot_instance, "ai_detector", None):
+            self.bot.send_message(self.group_id, _("AI detector is not enabled. Please configure API first."))
+            return
+
+        ai_detector = self.bot_instance.ai_detector
+        if not ai_detector.is_enabled({"enable_ai": True}):
+            self.bot.send_message(self.group_id, _("AI detector is disabled or missing credentials."))
+            return
+
+        try:
+            is_spam, info = ai_detector.detect(message, context={"enable_ai": True})
+        except Exception as e:
+            logger.error(_("AI test failed: {}").format(str(e)))
+            self.bot.send_message(self.group_id, _("AI detection failed: {}").format(str(e)))
+            return
+
+        info = info or {}
+        detector_name = info.get("detector") or ai_detector.get_name()
+        confidence = info.get("confidence")
+        reason = info.get("reason")
+        method = info.get("method") or _("AI")
+
+        if is_spam:
+            result_text = _("Result: Marked as spam ✅")
+        else:
+            result_text = _("Result: Not spam ❌")
+
+        details = [
+            f"{_('Detector')}: {detector_name}",
+            f"{_('Method')}: {method}",
+        ]
+        if confidence is not None:
+            details.append(f"{_('Confidence')}: {confidence:.2%}")
+        if reason:
+            details.append(f"{_('Reason')}: {reason}")
+
+        self.bot.send_message(
+            self.group_id,
+            result_text + "\n" + "\n".join(details),
+            message_thread_id=None
+        )
 
     # Broadcast Message
     def broadcast_message(self, message: Message):

@@ -92,6 +92,9 @@ class Database:
         try:
             db_cursor = db.cursor()
             db_cursor.execute("UPDATE settings SET value = ? WHERE key = ?", (value, key))
+            if db_cursor.rowcount == 0:
+                # Insert when the key does not exist yet
+                db_cursor.execute("INSERT INTO settings (key, value) VALUES (?, ?)", (key, value))
         finally:
             db.close()
 
